@@ -1,85 +1,189 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-help() 
-    {
-    cat << EOF
-    Desc:   该程序是一个图片批处理脚本，能实现要求所述的5个功能。
-    Usage:  bash $0 [-q] [-r] [-w] [-p] [-s] [-t] 
-    Author: ananan2001
-    options：
-        -h      帮助文档
-        -q Q    以参数Q为质量因子进行JPEG图片压缩
-        -r R    以参数r为分辨率压缩 jpeg/png/svg 图像
-        -w      自定义添加水印
-        -p      批量加前缀
-        -s      批量加后缀
-        -t      将 png/svg 图片转换为 jpg 格式图像
-EOF
-        exit 0
-    }
+input=""
+output=""
+q_pct="75"
+r_pct="25"
+text=""
+prefix=""
+suffix=""
+isCompressQuality="0"
+isCompressResolution="0"
+isWatermark="0"
+isPrefix="0"
+isSuffix="0"
+isTransJPG="0"
 
-# 功能一：对jpeg格式图片进行图片质量压缩
-JPEG_quality_compress {
-    Q=$1
-    for i in $(ls *.jpeg); do
-        convert "$i" -quality "$Q" "$i"
-        echo "$i 已压缩 $Q。"
+function Usage
+
+{
+    echo "Usage:"
+    echo "  -i  --input <filename>              输入图片"
+    echo "  -o  --output <filename>             输出图片"
+    echo "  -cq, --compressquality <percent>             对jpeg格式图片进行图片质量压缩"
+    echo "  -cr, --compressresolution <percent>          对jpeg/png/svg格式图片在保持原始宽高比的前提下压缩分辨率"
+    echo "  -w, --watermark <text>              对图片批量添加自定义文本水印"
+    echo "  -p, --prefix <prefix>               统一添加文件名前缀，不影响原始文件扩展名"
+    echo "  -s, --suffix <suffix>               统一添加文件名后缀，不影响原始文件扩展名"
+    echo "  -t, --transfer                      图片格式转换"
+    echo "  -h,  --help"
+}
+
+
+# 实现图片质量压缩
+function compressQuality
+{
+    $(convert "$1" -quality "$2"% "$3")
+    echo " CompressQuality "$1" into "$3"."   
+}
+
+# 压缩分辨率
+function compressResolution
+{
+    $(convert "$1" -resize "$2"% "$3")
+    echo " CompressResolution "$1" into "$3"."  
+}
+
+# 添加wm
+function addWatermark
+{
+    $(convert "$1" -draw "gravity east fill black  text 0,12 "$2" " "$3") 
+    echo ""$3" contains the text:"$2""
+}
+
+# 转换图片格式
+function transFormat
+{
+    $(convert "$1" "$2")
+    echo "Transfer "$1" into "$2""
+}
+
+# 前缀
+function addPrefix
+{
+    for name in `ls *`
+    do
+        cp "$name" "$1"."$name"
     done
 }
 
-# 功能二：对jpeg/png/svg格式图片在保持原始宽高比的前提下压缩分辨率
-distinguish_compress {
-    D=$1
-    for i in $(ls *.jpeg *.png *.svg);do
-        convert "$i" -resize "$D" "$i"
-        echo "$i 已压缩 $D 分辨率 。"
-    done
+# 后缀
+function addSuffix
+{
+    for name in `ls *`
+        do
+        cp "$name" "$name"."$1"
+        done
 }
 
-# 功能三：对图片批量添加自定义文本水印
-add_watermarking {
-    for i in *;do
-        convert "$i" -pointsize "$1" -fill black -gravity southeast  -draw "text 10,20 '$2'" "$i"
-        echo "$i 添加自定义水印 $2 完毕。"
-    done
-}
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -i|--input)  
+		      case "$2" in
+		          "") echo "parameter is needed" ; 
+				break
+				;;
+			  *)  input=$2; 
+				shift 2 
+				;;
+		      esac 
+		      ;;
+                     
+        -o|--output)  
+                      case "$2" in
+		  	  "") echo "parameter is needed" ; 
+				break 
+				;;
+			  *)  output=$2; 
+				shift 2 
+				;;
+		      esac 
+		      ;;
 
-# 功能四（一）：统一添加文件名前缀,不影响原始文件扩展名）
-add_prefix {
-    for i in *;do
-        mv $i $1$i
-        echo "已添加 $i 的前缀名 $1。"
-    done
-}
+        -cq|--quality)         
+			q_pct=$2 ; 
+			isCompressQuality="1" ; 
+			shift 2 
+			;;
+                      
 
-# 功能四（二）：统一添加文件名后缀,不影响原始文件扩展名）
-add_suffix {
-    for i in *;do
-        mv $i $i$1
-        echo "已添加 $i 的后缀名 $1。"
-    done
-}
+        -cr|--resolution)      
+			r_pct=$2 ; 
+			isCompressResolution="1" ; 
+			shift 2 
+			;;
+                              
 
-# 功能五：将png/svg图片统一转换为jpg格式图片
-transform_into_jpg {
-    for i in $(ls *.png &.svg); do
-        convert $i $(img%.*).jpg
-   	echo "$i 已转换为jpg格式。"
-    done
-}
+        -w|--watermark)   
+			text=$2 ; 
+			isWatermark="1"	 ; 
+			shift 2 
+			;;		  
+			     
+   		  	       
+	-p|--prefix)	     
+			case "$2" in
+                        "") echo "parameter is needed" ; 
+			break 
+			;;
+			*)  isPrefix="1" ; 
+			prefix=$2 ; 
+			shift 2 ;;	  
+			esac 
+			;;	
+		
+			
+	-s|--suffix)	  
+		        case "$2" in
+			"") echo "parameter is needed" ; 
+			break 
+			;;
+			*)  isSuffix="1" ; 
+			suffix=$2 ; 
+			shift 2 
+			;;  
+		        esac 
+			;;
+			      
+	-t|--transfer) 	     
+                        isTransFormat="1"
+                        shift 
+			;;
 
-while [-n "$1"];do
-    case $1 in
-        -h) help;;
-        --) shift;break;;
-        -q) JPEG_quality_compress "$2" "$3";;
-        -r) distinguish_compress "$2" "$3";;
-        -w) add_watermarking "$2" "$3";; 
-        -p) add_prefix "$2";; 
-        -s) add_suffix "$2";; 
-        -t) transform_into_jpg;; 
-        -*) echo"error:no such option $1.";exit 1;;
-        *0) break;;
+        -h|--help)	     
+			Usage
+                       	exit
+                       	;;
+
+	\?)             
+		        Usage
+                        exit 1 ;;
+
     esac
-    done
-    
+   
+done
+
+
+if [ "$isCompressQuality" == "1" ] ; then
+	compressQuality $input $q_pct $output
+fi
+
+if [ "$isCompressResolution" == "1" ] ; then
+        compressResolution $input $r_pct $output
+fi
+
+if [ "$isTransJPG" == "1" ] ; then
+        transFormat $input $output
+fi
+
+if [ "$isWatermark" == "1" ] ; then
+        addWatermark $input $text $output
+fi
+
+if [ "$isPrefix" == "1"  ] ; then
+        addPrefix $prefix
+fi
+
+if [ "$isSuffix" == "1" ] ; then
+        addSuffix $suffix
+fi

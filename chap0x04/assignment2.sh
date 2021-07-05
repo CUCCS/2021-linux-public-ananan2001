@@ -2,7 +2,6 @@
 help() 
     {
     cat << EOF
-
     Desc:   该程序作用是能对数据文件进行批量处理，完成数据统计工作。
     Usage:  bash $0 [-a] [-p] [-n] [-m] [-h]
     Author: ananan2001
